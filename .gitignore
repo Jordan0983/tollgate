@@ -1,0 +1,14 @@
+node_modules/
+.env
+.env.*
+!.env.example
+.wallets.json
+data/
+*.log
+.DS_Store
+
+# Private handoff material: do NOT publish
+PROCESS.md
+HANDOFF.md
+scripts/handoff-narrative.md
+scripts/bundle-handoff.mjs

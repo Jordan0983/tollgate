@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: tollgate
+    runtime: docker
+    plan: free
+    healthCheckPath: /healthz
+    envVars:
+      - key: PAY_TO
+        sync: false          # paste your owner wallet address in the Render dashboard
+      - key: DASHBOARD_TOKEN
+        generateValue: true  # Render generates a random token; read it in the dashboard's env tab
+      - key: NETWORK
+        value: devnet
+      - key: FACILITATOR_URL
+        value: https://x402.org/facilitator
+      - key: MAX_PER_PAYER_PER_DAY_USD
+        value: "0.50"
+      - key: RPC_URL
+        sync: false          # optional

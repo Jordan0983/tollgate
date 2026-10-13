@@ -1,0 +1,350 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tollgate dashboard</title>
+<meta name="description" content="Live revenue, per-agent spend and refusals for APIs charging AI agents per request on Solana.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --concrete: #e4e7e3;
+    --panel: #f3f5f2;
+    --ink: #14201b;
+    --muted: #4d5a54;
+    --line: #b7beb8;
+    --sign: #0f6b47;      /* single accent: highway-sign green, 5.6:1 on concrete */
+    --refuse: #a8321a;    /* reserved for refused requests only */
+    --display: "Big Shoulders Display", "Arial Narrow", Impact, sans-serif;
+    --body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--concrete);
+    color: var(--ink);
+    font: 400 1rem/1.5 var(--body);
+  }
+  a { color: var(--sign); text-underline-offset: 3px; }
+  a:focus-visible, button:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
+
+  /* Shell: narrow sticky column + wide ledger */
+  .shell { display: grid; grid-template-columns: 1fr; min-height: 100vh; }
+  .rail {
+    padding: 20px 16px 24px;
+    background: var(--ink);
+    color: var(--panel);
+  }
+  .ledger { padding: 20px 16px 48px; min-width: 0; }
+
+  .brand { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+  .brand h1 { font: 800 1.75rem/1 var(--display); letter-spacing: .02em; margin: 0; }
+  .sync { font-size: .8125rem; color: #aab6af; }
+
+  .total { margin: 28px 0 4px; }
+  .total .label { font-size: .9375rem; color: #aab6af; margin: 0; }
+  .total .amount {
+    font: 800 clamp(3.25rem, 14vw, 5.5rem)/0.95 var(--display);
+    letter-spacing: .01em;
+    margin: 4px 0 0;
+    font-variant-numeric: tabular-nums;
+  }
+  .total .amount small { font-size: .45em; color: #aab6af; margin-left: 6px; font-weight: 700; }
+  .tally { margin: 10px 0 0; font-size: .9375rem; color: #d3dbd5; }
+  .tally strong { color: #fff; font-weight: 600; }
+  .tally .refused { color: #ffb4a3; }
+
+  .facts { margin: 28px 0 0; border-top: 1px solid #33423b; }
+  .facts div { display: grid; grid-template-columns: 7.5rem 1fr; gap: 12px; padding: 12px 0; border-bottom: 1px solid #33423b; align-items: center; }
+  .facts dt { color: #aab6af; font-size: .875rem; }
+  .facts dd { margin: 0; font-size: .9375rem; overflow-wrap: anywhere; }
+  .copy {
+    margin-left: 8px; min-height: 44px; min-width: 44px; padding: 0 12px;
+    background: transparent; color: var(--panel); border: 1px solid #5a6b62; border-radius: 4px;
+    font: 500 .875rem var(--body); cursor: pointer;
+  }
+  .copy:hover { background: #22322b; }
+
+  h2 { font: 800 1.5rem/1.1 var(--display); letter-spacing: .02em; margin: 0 0 10px; }
+  section { margin: 0 0 36px; }
+  .note { color: var(--muted); font-size: .9375rem; margin: 0 0 12px; max-width: 62ch; }
+
+  .scroll { overflow-x: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 4px; }
+  table { width: 100%; border-collapse: collapse; font-size: .9375rem; min-width: 34rem; }
+  th, td { padding: 12px 14px; text-align: left; border-bottom: 1px solid var(--line); vertical-align: middle; }
+  th { font-weight: 600; color: var(--muted); font-size: .875rem; background: var(--panel); position: sticky; top: 0; }
+  tr:last-child td { border-bottom: 0; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .addr, .tx { font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace; font-size: .8125rem; }
+  .route { font-weight: 600; }
+
+  .bar { height: 8px; background: var(--line); border-radius: 4px; overflow: hidden; min-width: 80px; }
+  .bar > i { display: block; height: 100%; background: var(--sign); }
+  .bar.full > i { background: var(--refuse); }
+
+  .empty { padding: 20px 14px; color: var(--muted); }
+  .empty code { background: var(--concrete); padding: 2px 6px; border-radius: 3px; font-size: .875rem; }
+  .refusal td:first-child { box-shadow: inset 4px 0 0 var(--refuse); }
+  .banner { background: var(--panel); border: 1px solid var(--refuse); border-left-width: 6px; padding: 14px 16px; margin: 0 0 24px; }
+
+  /* Phones: stack each row into a labelled card so nothing needs sideways scrolling */
+  @media (max-width: 639px) {
+    table { min-width: 0; }
+    thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+    tbody tr { display: block; padding: 10px 14px; border-bottom: 1px solid var(--line); }
+    tbody tr:last-child { border-bottom: 0; }
+    td, td.num { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; padding: 4px 0; border: 0; text-align: right; }
+    td::before { content: attr(data-label); color: var(--muted); font: 400 .875rem var(--body); text-align: left; flex: none; }
+    td .note { text-align: right; }
+    .refusal td:first-child { box-shadow: none; }
+    tr.refusal { box-shadow: inset 4px 0 0 var(--refuse); }
+    .bar { min-width: 120px; flex: 1; }
+  }
+
+  @media (min-width: 768px) {
+    .rail { padding: 28px 28px 32px; }
+    .ledger { padding: 28px 28px 64px; }
+  }
+  @media (min-width: 1024px) {
+    .shell { grid-template-columns: minmax(300px, 30%) 1fr; }
+    .rail { position: sticky; top: 0; height: 100vh; overflow-y: auto; padding: 36px 32px; }
+    .ledger { padding: 36px 40px 72px; }
+  }
+  @media (min-width: 1440px) {
+    .shell { grid-template-columns: 440px 1fr; }
+    .ledger { padding: 44px 56px 80px; max-width: 1100px; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+</style>
+</head>
+<body>
+<div class="shell">
+  <aside class="rail" aria-label="Summary">
+    <div class="brand">
+      <h1>Tollgate</h1>
+      <span class="sync" id="sync" role="status">Connecting…</span>
+    </div>
+
+    <div class="total">
+      <p class="label">USDC collected</p>
+      <p class="amount" id="total">$0.0000</p>
+      <p class="tally" id="tally">No requests yet</p>
+    </div>
+
+    <dl class="facts" id="facts"></dl>
+  </aside>
+
+  <main class="ledger">
+    <div id="banner" hidden class="banner" role="alert"></div>
+
+    <section aria-labelledby="h-recent">
+      <h2 id="h-recent">Recent payments</h2>
+      <p class="note">Each row is a payment that settled on Solana before the API returned data.</p>
+      <div class="scroll"><table id="recent"></table></div>
+    </section>
+
+    <section aria-labelledby="h-routes">
+      <h2 id="h-routes">Priced routes</h2>
+      <div class="scroll"><table id="routes"></table></div>
+    </section>
+
+    <section aria-labelledby="h-payers">
+      <h2 id="h-payers">Agents and wallets</h2>
+      <p class="note" id="payers-note">Spend per paying wallet. When a daily cap is set, the bar shows how much of today's cap each wallet has used.</p>
+      <div class="scroll"><table id="payers"></table></div>
+    </section>
+
+    <section aria-labelledby="h-refused">
+      <h2 id="h-refused">Refused requests</h2>
+      <p class="note">Payments the owner's rules turned away. No money is taken for these.</p>
+      <div class="scroll"><table id="refused"></table></div>
+    </section>
+  </main>
+</div>
+
+<script>
+(function () {
+  var base = location.pathname.replace(/\/$/, '');
+  var token = new URLSearchParams(location.search).get('token');
+  var url = base + '/api/stats' + (token ? '?token=' + encodeURIComponent(token) : '');
+  var fmtTime = new Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  var fmtDay = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' });
+  var lastOk = 0;
+
+  function el(tag, attrs, kids) {
+    var n = document.createElement(tag);
+    if (attrs) for (var k in attrs) {
+      if (k === 'class') n.className = attrs[k];
+      else if (k === 'text') n.textContent = attrs[k];
+      else n.setAttribute(k, attrs[k]);
+    }
+    (kids || []).forEach(function (c) { n.appendChild(typeof c === 'string' ? document.createTextNode(c) : c); });
+    return n;
+  }
+  function usd(n, d) { return '$' + Number(n).toFixed(d == null ? 4 : d); }
+  function short(a) { return a && a.length > 12 ? a.slice(0, 4) + '…' + a.slice(-4) : (a || ''); }
+  function cluster(network) {
+    if (/EtWTRABZ/.test(network)) return '?cluster=devnet';
+    if (/5eykt4Us/.test(network)) return '';
+    return '?cluster=testnet';
+  }
+  function setTable(t, head, rows, emptyNode) {
+    t.replaceChildren();
+    if (!rows.length) {
+      var wrap = t.parentNode;
+      t.hidden = true;
+      var old = wrap.querySelector('.empty'); if (old) old.remove();
+      wrap.appendChild(emptyNode);
+      return;
+    }
+    t.hidden = false;
+    var e = t.parentNode.querySelector('.empty'); if (e) e.remove();
+    var thead = el('thead', null, [el('tr', null, head.map(function (h) {
+      return el('th', { scope: 'col', class: h.num ? 'num' : '', text: h.t });
+    }))]);
+    t.appendChild(thead);
+    // Label every cell so rows can stack as readable cards on narrow screens.
+    rows.forEach(function (tr) {
+      Array.prototype.forEach.call(tr.children, function (td, i) {
+        if (head[i]) td.setAttribute('data-label', head[i].t);
+      });
+    });
+    t.appendChild(el('tbody', null, rows));
+  }
+  function empty(msg, code) {
+    var d = el('div', { class: 'empty' });
+    d.appendChild(document.createTextNode(msg + ' '));
+    if (code) d.appendChild(el('code', { text: code }));
+    return d;
+  }
+
+  function render(s) {
+    document.getElementById('total').replaceChildren(document.createTextNode(usd(s.totalUsd)));
+    var tally = document.getElementById('tally');
+    tally.replaceChildren();
+    if (!s.paidCalls && !s.refusedCalls) { tally.textContent = 'No requests yet'; }
+    else {
+      tally.appendChild(el('strong', { text: String(s.paidCalls) }));
+      tally.appendChild(document.createTextNode(s.paidCalls === 1 ? ' paid call' : ' paid calls'));
+      if (s.refusedCalls) {
+        tally.appendChild(document.createTextNode(', '));
+        tally.appendChild(el('span', { class: 'refused', text: s.refusedCalls + ' refused' }));
+      }
+    }
+
+    var c = s.config, facts = document.getElementById('facts');
+    facts.replaceChildren();
+    function fact(k, v) { var d = el('div', null, [el('dt', { text: k }), v]); facts.appendChild(d); }
+    var net = /EtWTRABZ/.test(c.network) ? 'Solana devnet' : /5eykt4Us/.test(c.network) ? 'Solana mainnet' : c.network;
+    fact('Network', el('dd', { text: net }));
+    var payee = el('dd', null, [el('span', { class: 'addr', text: short(c.payTo) })]);
+    var btn = el('button', { class: 'copy', type: 'button', 'aria-label': 'Copy payee address', text: 'Copy' });
+    btn.addEventListener('click', function () {
+      if (navigator.clipboard) navigator.clipboard.writeText(c.payTo).then(function () { btn.textContent = 'Copied'; setTimeout(function () { btn.textContent = 'Copy'; }, 1500); });
+    });
+    payee.appendChild(btn);
+    fact('Paid to', payee);
+    fact('Daily cap per wallet', el('dd', { text: c.maxPerPayerPerDayUsd == null ? 'None set' : usd(c.maxPerPayerPerDayUsd, 2) }));
+    fact('Priced routes', el('dd', { text: String(c.routes.length) }));
+
+    // Recent payments
+    var cl = cluster(c.network);
+    setTable(document.getElementById('recent'),
+      [{ t: 'Time' }, { t: 'Route' }, { t: 'Paid by' }, { t: 'Amount', num: true }, { t: 'Transaction' }],
+      s.recent.map(function (p) {
+        var d = new Date(p.at);
+        return el('tr', null, [
+          el('td', { text: fmtDay.format(d) + ' ' + fmtTime.format(d) }),
+          el('td', { class: 'route', text: p.route }),
+          el('td', { class: 'addr', text: short(p.payer) }),
+          el('td', { class: 'num', text: usd(p.usd) }),
+          el('td', null, [p.tx && !/^Mock/.test(p.tx)
+            ? el('a', { class: 'tx', href: 'https://explorer.solana.com/tx/' + encodeURIComponent(p.tx) + cl, target: '_blank', rel: 'noopener', text: short(p.tx) })
+            : el('span', { class: 'tx', text: short(p.tx) || 'n/a' })])
+        ]);
+      }),
+      empty('No payments yet. Start the server, then run', 'npm run demo:agent'));
+
+    // Routes: merge config with stats so unpaid routes still show
+    var byRoute = {}; s.routes.forEach(function (r) { byRoute[r.route] = r; });
+    setTable(document.getElementById('routes'),
+      [{ t: 'Route' }, { t: 'Price', num: true }, { t: 'Paid calls', num: true }, { t: 'Collected', num: true }],
+      c.routes.map(function (r) {
+        var st = byRoute[r.key] || { calls: 0, usd: 0 };
+        return el('tr', null, [
+          el('td', null, [el('div', { class: 'route', text: r.key }), r.description ? el('div', { class: 'note', style: 'margin:0', text: r.description }) : '']),
+          el('td', { class: 'num', text: r.price }),
+          el('td', { class: 'num', text: String(st.calls) }),
+          el('td', { class: 'num', text: usd(st.usd) })
+        ]);
+      }),
+      empty('No routes configured.'));
+
+    // Payers
+    var cap = c.maxPerPayerPerDayUsd;
+    setTable(document.getElementById('payers'),
+      [{ t: 'Wallet' }, { t: 'Paid calls', num: true }, { t: 'Total', num: true }, { t: cap == null ? 'Today' : 'Today vs cap', num: cap == null }],
+      s.payers.map(function (p) {
+        var cell;
+        if (cap == null) cell = el('td', { class: 'num', text: usd(p.usdToday) });
+        else {
+          var pct = Math.min(100, (p.usdToday / cap) * 100);
+          cell = el('td', null, [
+            el('div', { class: 'bar' + (pct >= 100 ? ' full' : ''), role: 'img', 'aria-label': Math.round(pct) + ' percent of daily cap used' }, [el('i', { style: 'width:' + pct + '%' })]),
+            el('div', { class: 'note', style: 'margin:4px 0 0', text: usd(p.usdToday) + ' of ' + usd(cap, 2) })
+          ]);
+        }
+        return el('tr', null, [
+          el('td', { class: 'addr', text: short(p.payer) }),
+          el('td', { class: 'num', text: String(p.calls) }),
+          el('td', { class: 'num', text: usd(p.usd) }),
+          cell
+        ]);
+      }),
+      empty('No paying wallets yet.'));
+
+    // Refusals
+    setTable(document.getElementById('refused'),
+      [{ t: 'Time' }, { t: 'Route' }, { t: 'Wallet' }, { t: 'Reason' }],
+      s.recentRefusals.map(function (r) {
+        return el('tr', { class: 'refusal' }, [
+          el('td', { text: fmtTime.format(new Date(r.at)) }),
+          el('td', { class: 'route', text: r.route }),
+          el('td', { class: 'addr', text: short(r.payer) }),
+          el('td', { text: r.reason })
+        ]);
+      }),
+      empty('Nothing refused. Set a daily cap per wallet in your server config to see this fill in.'));
+  }
+
+  function tick() {
+    fetch(url, { cache: 'no-store' }).then(function (r) {
+      if (r.status === 401) throw new Error('auth');
+      if (!r.ok) throw new Error('http ' + r.status);
+      return r.json();
+    }).then(function (s) {
+      lastOk = Date.now();
+      document.getElementById('banner').hidden = true;
+      render(s);
+      paintSync();
+    }).catch(function (e) {
+      var b = document.getElementById('banner');
+      b.hidden = false;
+      b.textContent = e.message === 'auth'
+        ? 'This dashboard needs a token. Open it with ?token=YOUR_TOKEN at the end of the address.'
+        : 'Cannot reach the server. Retrying every few seconds.';
+    });
+  }
+  function paintSync() {
+    var s = document.getElementById('sync');
+    s.textContent = lastOk ? 'Updated ' + Math.max(0, Math.round((Date.now() - lastOk) / 1000)) + 's ago' : 'Connecting…';
+  }
+  setInterval(paintSync, 1000);
+  tick(); setInterval(tick, 3000);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,37 @@
+{
+  "name": "tollgate",
+  "version": "0.1.0",
+  "description": "Charge AI agents per request in USDC on Solana (x402), with an owner dashboard and agent-side budgets.",
+  "type": "module",
+  "license": "MIT",
+  "main": "src/index.ts",
+  "engines": {
+    "node": ">=20.12"
+  },
+  "scripts": {
+    "start": "tsx examples/server.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "node --import tsx --test test/*.test.ts",
+    "wallets": "tsx scripts/wallets.ts",
+    "preflight": "tsx scripts/preflight.ts",
+    "demo:server": "tsx examples/server.ts",
+    "demo:agent": "tsx examples/agent.ts",
+    "setup": "tsx scripts/setup.ts",
+    "demo": "tsx scripts/demo.ts"
+  },
+  "dependencies": {
+    "@scure/base": "^2.4.0",
+    "@solana/kit": "^5.5.1",
+    "@x402/core": "^2.28.0",
+    "@x402/express": "^2.28.0",
+    "@x402/fetch": "^2.28.0",
+    "@x402/svm": "^2.28.0",
+    "express": "^5.3.0",
+    "tsx": "^4.23.15"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/node": "^22.0.0",
+    "typescript": "^5.9.3"
+  }
+}

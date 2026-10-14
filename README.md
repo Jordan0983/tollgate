@@ -19,6 +19,10 @@ The only manual step is in your browser: get free **devnet USDC** for both walle
 
 Then open `http://localhost:3000/tollgate` to see the dashboard. Manual alternatives: `npm run wallets`, `npm run preflight`, `npm start`, `npm run demo:agent`. Settings live in `.env` (copy `.env.example`); locally, `PAY_TO` defaults to the owner wallet.
 
+### No computer? Run it from a phone browser
+
+Use a free GitHub Codespace (check GitHub's billing page for the current free monthly allowance). Open https://codespaces.new/Jordan0983/tollgate and create the codespace; dependencies install automatically. In the terminal run `npm run setup`, copy the two addresses from `faucet-addresses.txt` into https://faucet.circle.com in another tab, then run `npm run demo`. Delete the codespace afterwards. The wallets are throwaway devnet wallets, but still do not share `.wallets.json`.
+
 ## Use it in your API
 
 ```ts

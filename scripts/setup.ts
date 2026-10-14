@@ -1,4 +1,4 @@
-import { existsSync } from "node:fs";
+import { existsSync, writeFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { USDC_DEVNET_ADDRESS } from "@x402/svm";
 import { loadLocalEnv, localWallets } from "./local-env.js";
@@ -14,6 +14,12 @@ if (!existsSync(".wallets.json")) {
 const w = localWallets();
 if (!w) { console.error("Could not read .wallets.json"); process.exit(1); }
 
+// Public addresses only (no secret keys), one per line, so they are easy to select and copy on a phone.
+writeFileSync(
+  "faucet-addresses.txt",
+  `OWNER address (receives USDC). Paste this into the faucet first:\n${w.owner.address}\n\nAGENT address (pays USDC). Paste this into the faucet second:\n${w.agent.address}\n`,
+);
+
 console.log("\n==============================================================");
 console.log(" YOUR ONLY MANUAL STEP: get free test money in your browser");
 console.log("==============================================================");
@@ -22,7 +28,8 @@ console.log(`      paste OWNER address:  ${w.owner.address}`);
 console.log(" 2. Do it again for the AGENT address:");
 console.log(`      paste AGENT address:  ${w.agent.address}`);
 console.log(" 3. (Optional safety) https://faucet.solana.com -> devnet -> 1 SOL to the AGENT address");
-console.log("\n This window will notice when the money arrives. Leave it open.\n");
+console.log("\n On a phone: open faucet-addresses.txt in the file list; the addresses are easier to copy there.");
+console.log(" This window will notice when the money arrives. Leave it open.\n");
 
 async function usdc(owner: string): Promise<number> {
   const r = await fetch(RPC, {

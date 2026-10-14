@@ -1,0 +1,12 @@
+{
+  "name": "Tollgate",
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:22-bookworm",
+  "postCreateCommand": "npm ci",
+  "forwardPorts": [3000],
+  "portsAttributes": {
+    "3000": { "label": "Tollgate dashboard", "onAutoForward": "notify" }
+  },
+  "customizations": {
+    "vscode": { "settings": { "terminal.integrated.fontSize": 15 } }
+  }
+}

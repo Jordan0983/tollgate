@@ -12,3 +12,6 @@ PROCESS.md
 HANDOFF.md
 scripts/handoff-narrative.md
 scripts/bundle-handoff.mjs
+
+# Local, personal: wallet addresses written by `npm run setup`
+faucet-addresses.txt

@@ -1,5 +1,5 @@
 import { x402Client, wrapFetchWithPayment } from "@x402/fetch";
-import { registerExactSvmScheme } from "@x402/svm/exact/client";
+import { ExactSvmScheme } from "@x402/svm/exact/client";
 import { toClientSvmSigner } from "@x402/svm";
 import { createKeyPairSignerFromBytes } from "@solana/kit";
 import { base58 } from "@scure/base";
@@ -15,7 +15,9 @@ export interface AgentConfig {
   /** Base58-encoded 64-byte Solana secret key (as exported by Phantom / solana-keygen). */
   secretKey: string;
   budget: AgentBudget;
-  /** Called after every successful payment. */
+  /** Optional Solana RPC URL (e.g. a Helius free endpoint). Defaults to the public RPC for the network. */
+  rpcUrl?: string;
+  /** Called each time the agent signs a payment (spend is counted at signing, so failed settlements still count: conservative). */
   onPayment?: (info: { url?: string; usd: number; totalUsd: number }) => void;
 }
 
@@ -36,7 +38,7 @@ export async function createAgent(config: AgentConfig): Promise<TollgateAgent> {
   const signer = toClientSvmSigner(kp);
 
   const client = new x402Client();
-  registerExactSvmScheme(client, { signer });
+  client.register("solana:*", new ExactSvmScheme(signer, config.rpcUrl ? { rpcUrl: config.rpcUrl } : undefined));
 
   let spent = 0;
   // Spend control at the library level: hard per-request cap on recognized stablecoins.

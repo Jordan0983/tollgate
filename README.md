@@ -4,13 +4,13 @@ Charge AI agents per request, in USDC on Solana, with a few lines of Express mid
 
 An agent hits your endpoint, gets an HTTP 402 with a price, pays on-chain, retries, and gets the data. No accounts, no API keys, no card processor. Tollgate adds what the raw protocol does not: a **revenue ledger**, an **owner dashboard**, an **owner-side daily cap per wallet**, and an **agent-side budget** so an agent cannot overspend.
 
-> Status: hackathon build for the Colosseum Crypto World's Fair. Payment logic runs on the official `@x402/*` packages. See [Limits](#limits-read-this) for exactly what is and is not verified.
+> Status: early, devnet only. Built for Colosseum's Crypto World's Fair (Sept to Oct 2026) but not submitted before the deadline, so it is **not** a hackathon entry. Shared for feedback. Payment logic runs on the official `@x402/*` packages. See [Limits](#limits-read-this) for exactly what is and is not verified.
 
 ## Quickstart (devnet, about 15 minutes)
 
 ```bash
 npm install
-npm test                 # 5 tests, runs offline against a mock facilitator
+npm test                 # 8 tests, run offline (mock facilitator + mock Solana RPC)
 npm run setup            # creates two wallets, shows the faucet steps, waits for your test money, runs a health check
 npm run demo             # starts the server, sends a real agent, prints Solana explorer links as proof
 ```
@@ -89,12 +89,14 @@ Needs a long-running Node server (not serverless). `render.yaml` and a `Dockerfi
 
 ## Limits (read this)
 
-- **Verified by automated tests:** 402 challenge contents, paid retry returns data, revenue recorded once, failed settlement not counted, owner cap refusal, dashboard token. These use a mock facilitator.
-- **Not covered by tests:** a real on-chain payment. Run `npm run preflight` and the demo against devnet and confirm a transaction on the Solana explorer before relying on it.
+- **Verified by automated tests (offline):** 402 challenge contents, paid retry returns data, revenue recorded once, failed settlement not counted, owner cap refusal, dashboard token. Also the agent side: it builds and signs a real transaction (fee payer, agent, USDC mint all present; the agent's signature is set), stops at its own total budget, and refuses a price above its per-request cap. These run against a mock facilitator and a mock Solana RPC.
+- **Not covered by tests:** a real on-chain payment. Nothing here proves the facilitator accepts the transaction or that it settles on Solana. Run `npm run setup` then `npm run demo` against devnet and confirm a transaction on the Solana explorer before relying on it.
 - The default facilitator (`x402.org`) supports **testnet/devnet only**. Mainnet needs a different facilitator.
 - Ledger is a JSON file in one process. On hosts with ephemeral disks it resets on redeploy. A database-backed ledger is the obvious next step.
 - If the facilitator is unreachable at startup, paid routes return an error instead of a 402 (they fail closed: no data is served without payment).
 - The agent's total budget is per process; the owner cap is per wallet address.
+- The agent counts spend when it signs a payment, not when settlement succeeds, so a failed settlement still uses up budget (conservative on purpose).
+- Pass `rpcUrl` to `createAgent` (or set `RPC_URL` for the demo) to use your own Solana RPC; the public devnet endpoint is rate limited.
 
 ## License
 

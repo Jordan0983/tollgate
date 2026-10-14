@@ -28,6 +28,7 @@ export function mockFacilitator(opts: { payer?: string; failSettle?: boolean } =
   const app = express();
   app.use(express.json());
   const calls = { verify: 0, settle: 0 };
+  const verifyBodies: any[] = [];
   let n = 0;
   app.get("/supported", (_req, res) => {
     res.json({
@@ -36,8 +37,9 @@ export function mockFacilitator(opts: { payer?: string; failSettle?: boolean } =
       signers: { "solana:*": [FEE_PAYER] },
     });
   });
-  app.post("/verify", (_req, res) => {
+  app.post("/verify", (req, res) => {
     calls.verify++;
+    verifyBodies.push(req.body);
     res.json({ isValid: true, payer: opts.payer ?? "PayerAgent111111111111111111111111111111111" });
   });
   app.post("/settle", (_req, res) => {
@@ -50,5 +52,39 @@ export function mockFacilitator(opts: { payer?: string; failSettle?: boolean } =
       network: SOLANA_DEVNET_CAIP2,
     });
   });
-  return { app, calls };
+  return { app, calls, verifyBodies };
+}
+
+/** Minimal local stand-in for a Solana RPC node: only what the x402 client needs to build a payment. */
+export function mockSolanaRpc() {
+  const app = express();
+  app.use(express.json());
+  const seen: string[] = [];
+  const BLOCKHASH = "EZ3rST5dvHmbanh75jc4PuLfV96vp9fEYBVeNk4FfM1k"; // any valid 32-byte base58 value
+  // 82-byte SPL Token mint: decimals = 6 at offset 44, is_initialized = 1 at offset 45.
+  const mint = Buffer.alloc(82);
+  mint[44] = 6;
+  mint[45] = 1;
+  app.post("/", (req, res) => {
+    const { id, method } = req.body as { id: number; method: string };
+    seen.push(method);
+    if (method === "getAccountInfo") {
+      return void res.json({
+        jsonrpc: "2.0", id,
+        result: {
+          context: { slot: 1 },
+          value: {
+            data: [mint.toString("base64"), "base64"],
+            executable: false, lamports: 1461600, rentEpoch: 0, space: 82,
+            owner: "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+          },
+        },
+      });
+    }
+    if (method === "getLatestBlockhash") {
+      return void res.json({ jsonrpc: "2.0", id, result: { context: { slot: 1 }, value: { blockhash: BLOCKHASH, lastValidBlockHeight: 1000 } } });
+    }
+    res.json({ jsonrpc: "2.0", id, error: { code: -32601, message: `mock RPC does not implement ${method}` } });
+  });
+  return { app, seen };
 }

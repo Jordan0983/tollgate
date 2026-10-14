@@ -6,12 +6,12 @@
   "license": "MIT",
   "main": "src/index.ts",
   "engines": {
-    "node": ">=20.12"
+    "node": ">=20.14"
   },
   "scripts": {
     "start": "tsx examples/server.ts",
     "typecheck": "tsc --noEmit",
-    "test": "node --import tsx --test test/*.test.ts",
+    "test": "node --import tsx --test --test-force-exit --test-timeout=60000 test/*.test.ts",
     "wallets": "tsx scripts/wallets.ts",
     "preflight": "tsx scripts/preflight.ts",
     "demo:server": "tsx examples/server.ts",

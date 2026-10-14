@@ -11,6 +11,7 @@ const server = process.env.SERVER_URL || "http://localhost:3000";
 
 const agent = await createAgent({
   secretKey: secret,
+  rpcUrl: process.env.RPC_URL || undefined,
   budget: { perRequestUsd: 0.05, totalUsd: Number(process.env.AGENT_BUDGET_USD ?? "0.03") },
   onPayment: ({ url, usd, totalUsd }) =>
     console.log(`  paid $${usd.toFixed(4)} -> ${url}  (spent so far $${totalUsd.toFixed(4)})`),

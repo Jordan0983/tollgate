@@ -33,5 +33,19 @@
     "@types/express": "^5.0.6",
     "@types/node": "^22.0.0",
     "typescript": "^5.9.3"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Jordan0983/tollgate.git"
+  },
+  "keywords": [
+    "x402",
+    "solana",
+    "usdc",
+    "ai-agents",
+    "payments",
+    "express",
+    "middleware"
+  ],
+  "author": "Emmanuel (Jordan Bow)"
 }

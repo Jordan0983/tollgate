@@ -4,7 +4,7 @@ Charge AI agents per request, in USDC on Solana, with a few lines of Express mid
 
 An agent hits your endpoint, gets an HTTP 402 with a price, pays on-chain, retries, and gets the data. No accounts, no API keys, no card processor. Tollgate adds what the raw protocol does not: a **revenue ledger**, an **owner dashboard**, an **owner-side daily cap per wallet**, and an **agent-side budget** so an agent cannot overspend.
 
-> Status: early, devnet only. Built for Colosseum's Crypto World's Fair (Sept to Oct 2026) but not submitted before the deadline, so it is **not** a hackathon entry. Shared for feedback. Payment logic runs on the official `@x402/*` packages. See [Limits](#limits-read-this) for exactly what is and is not verified.
+> Status: early, devnet only. One real $0.01 USDC payment has been verified on devnet by hand (see [Limits](#limits-read-this)); everything else is covered by offline tests. Payment logic runs on the official `@x402/*` packages. Not audited, not for mainnet money yet.
 
 ## Quickstart (devnet, about 15 minutes)
 
@@ -101,6 +101,15 @@ Needs a long-running Node server (not serverless). `render.yaml` and a `Dockerfi
 - The agent's total budget is per process; the owner cap is per wallet address.
 - The agent counts spend when it signs a payment, not when settlement succeeds, so a failed settlement still uses up budget (conservative on purpose).
 - Pass `rpcUrl` to `createAgent` (or set `RPC_URL` for the demo) to use your own Solana RPC; the public devnet endpoint is rate limited.
+
+## Roadmap
+
+- Database-backed ledger (Postgres or SQLite) so revenue survives redeploys
+- Mainnet support with a production facilitator, tested end to end
+- Per-API-key or per-agent-identity caps, not only per wallet
+- Automated devnet integration test in CI (needs funded test wallets)
+
+Issues and pull requests are welcome.
 
 ## License
 
